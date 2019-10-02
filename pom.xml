@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>me.asu</groupId>
+    <artifactId>asu-commands</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+
+    <properties>
+        <!-- 编译参数 -->
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <maven.test.skip>true</maven.test.skip>
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
+    <parent>
+        <groupId>me.asu</groupId>
+        <artifactId>asu-build</artifactId>
+        <version>1.0.0</version>
+    </parent>
+    <dependencies>
+        <dependency>
+            <groupId>me.asu</groupId>
+            <artifactId>asu-util</artifactId>
+            <version>1.0.2-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>me.asu</groupId>
+            <artifactId>asu-tui</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+
+    </dependencies>
+    <build>
+        <!--<plugins>-->
+
+            <!--&lt;!&ndash; Maven Assembly Plugin &ndash;&gt;-->
+            <!--<plugin>-->
+                <!--<groupId>org.apache.maven.plugins</groupId>-->
+                <!--<artifactId>maven-assembly-plugin</artifactId>-->
+                <!--<configuration>-->
+                    <!--&lt;!&ndash; get all project dependencies &ndash;&gt;-->
+                    <!--<descriptorRefs>-->
+                        <!--<descriptorRef>jar-with-dependencies</descriptorRef>-->
+                    <!--</descriptorRefs>-->
+                    <!--&lt;!&ndash; MainClass in mainfest make a executable jar &ndash;&gt;-->
+                    <!--<archive>-->
+                        <!--<manifest>-->
+                            <!--<mainClass></mainClass>-->
+                        <!--</manifest>-->
+                    <!--</archive>-->
+
+                <!--</configuration>-->
+                <!--<executions>-->
+                    <!--<execution>-->
+                        <!--<id>make-assembly</id>-->
+                        <!--&lt;!&ndash; bind to the packaging phase &ndash;&gt;-->
+                        <!--<phase>package</phase>-->
+                        <!--<goals>-->
+                            <!--<goal>single</goal>-->
+                        <!--</goals>-->
+                    <!--</execution>-->
+                <!--</executions>-->
+            <!--</plugin>-->
+        <!--</plugins>-->
+    </build>
+</project>
