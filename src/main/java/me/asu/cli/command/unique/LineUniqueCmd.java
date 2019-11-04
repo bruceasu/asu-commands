@@ -81,7 +81,7 @@ public class LineUniqueCmd implements Command {
         c.flush();
         Set<String> set = new HashSet<>();
         try (Stream<String> lines = Files.lines(inputPath, StandardCharsets.ISO_8859_1);
-             BufferedWriter writer = Files.newBufferedWriter(outputPath)) {
+             BufferedWriter writer = Files.newBufferedWriter(outputPath,  StandardCharsets.ISO_8859_1)) {
             set.clear();
             lines.forEach(line -> {
                 if (!set.contains(line)) {
@@ -97,7 +97,7 @@ public class LineUniqueCmd implements Command {
         try {
             bufferedWriter.write(w);
             bufferedWriter.write(System.getProperty("line.separator"));
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
