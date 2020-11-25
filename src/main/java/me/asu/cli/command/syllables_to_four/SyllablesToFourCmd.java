@@ -1,18 +1,3 @@
-/*
- * Copyright 2012 ClamShell-Cli.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package me.asu.cli.command.syllables_to_four;
 
 import java.io.BufferedWriter;
@@ -26,12 +11,15 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import me.asu.tui.framework.api.*;
+import me.asu.tui.framework.util.CliArguments;
+import me.asu.tui.framework.util.CliCmdLineOption;
+import me.asu.tui.framework.util.CliCmdLineParser;
 import me.asu.util.Strings;
 
 /**
  * 对词汇进行编码
  */
-public class SyllablesToFourCmd implements Command {
+public class SyllablesToFourCmd implements CliCommand {
 
     private static final String NAMESPACE = "asu";
     private static final String CMD_NAME = "syllables-to-four";
@@ -39,19 +27,17 @@ public class SyllablesToFourCmd implements Command {
 
     @Override
     public Descriptor getDescriptor() {
-        return (descriptor != null) ? descriptor : (descriptor = new DescriptorImpl());
+        return (descriptor != null) ? descriptor : (descriptor = new InnerDescriptor());
     }
 
     @Override
-    public Object execute(Context ctx) {
-        String[] args = (String[]) ctx.getValue(Context.KEY_COMMAND_LINE_ARGS);
-        IoConsole c = ctx.getConsole();
+    public Object execute(CliContext ctx, String[] args) {
+        CliConsole console = ctx.getCliConsole();
 
-        ArgumentsParser argumentsParser = new ArgumentsParser(args, c).invoke();
+        ArgumentsParser argumentsParser = new ArgumentsParser(args, console).invoke();
         if (argumentsParser.isError()) {
             return 1;
         }
-
         processInput(argumentsParser);
         return 0;
     }
@@ -126,43 +112,29 @@ public class SyllablesToFourCmd implements Command {
         return b.toString();
     }
 
-    private Arguments parseArguments(String[] args) {
-        Arguments arguments = new Arguments();
+    private CliArguments parseArguments(String[] args) {
+        CliArguments arguments = new CliArguments();
         if (args == null || args.length == 0) {
             return arguments;
         }
 
-        for (int i = 0; i < args.length; i++) {
-            switch (args[i]) {
-                case "-e":
-                    if (i + 1 >= args.length) {
-                        throw new RuntimeException(args[i] + " 需要一个参数");
-                    }
-                    arguments.setParam(args[i], args[i + 1]);
-                    i++;
-                    break;
-                case "-h":
-                    arguments.setParam(args[i], "true");
-                    break;
-                default:
-                    arguments.addRemain(args[i]);
-            }
-        }
-        return arguments;
+        return descriptor.parse(args);
     }
 
     @Override
-    public void plug(Context plug) {
+    public void plug(CliContext plug) {
         //descriptor = new DescriptorImpl();
      }
 
     @Override
-    public void unplug(Context plug) {
+    public void unplug(CliContext plug) {
         // nothing to do
     }
 
 
-    private class DescriptorImpl implements Descriptor {
+    private class InnerDescriptor implements Descriptor {
+
+        private CliCmdLineParser parser = new CliCmdLineParser();
 
         @Override
         public String getNamespace() {
@@ -179,32 +151,35 @@ public class SyllablesToFourCmd implements Command {
             return "音节序列转4码字词编码";
         }
 
-        @Override
-        public String getUsage() {
-            StringBuilder result = new StringBuilder();
-            result.append(Configurator.VALUE_LINE_SEP).append(getName())
-                  .append(" [options] <inputFile>").append(Configurator.VALUE_LINE_SEP);
-
-            return result.toString();
+        InnerDescriptor()
+        {
+            CliCmdLineOption opt1 = CliCmdLineOption.builder().build();
+            opt1.setShortName("e");
+            opt1.setLongName("encoding");
+            opt1.setHasArg(true);
+            opt1.setDescription("文件字符编码，默认为 UTF-8。");
+            CliCmdLineOption opt2 = CliCmdLineOption.builder().build();
+            opt2.setShortName("h");
+            opt2.setLongName("help");
+            opt2.setHasArg(false);
+            opt1.setDescription("打印帮助信息。");
+            parser.addOption(opt1, opt2);
         }
 
         @Override
-        public Map<String, String> getArguments() {
-            Map<String, String> result = new TreeMap<>();
-            result.put("-e", "文件字符编码，默认为 UTF-8。");
-            result.put("-h", "打印帮助信息。");
-            return result;
+        public CliCmdLineParser getCliCmdLineParser()
+        {
+            return parser;
         }
-
     }
 
     private class ArgumentsParser {
 
         private boolean error;
         private final String[] args;
-        private final IoConsole c;
-        Arguments arguments = null;
-        public ArgumentsParser(String[] args, IoConsole c) {
+        private final CliConsole c;
+        CliArguments arguments = null;
+        public ArgumentsParser(String[] args, CliConsole c) {
             this.args = args;
             this.c = c;
         }
@@ -223,7 +198,7 @@ public class SyllablesToFourCmd implements Command {
                 error = true;
                 return this;
             }
-            if (arguments.hasParam("-h")
+            if (arguments.hasParam("h")
                     || !hasInputFile()) {
                 descriptor.printUsage(c);
                 error = true;
@@ -252,8 +227,8 @@ public class SyllablesToFourCmd implements Command {
 
         public Charset getEncoding() {
             Charset encoding = StandardCharsets.UTF_8;
-            if (arguments.hasParam("-e")) {
-                encoding = Charset.forName(arguments.getParam("-e"));
+            if (arguments.hasParam("e")) {
+                encoding = Charset.forName(arguments.getParam("e"));
             }
             return encoding;
         }

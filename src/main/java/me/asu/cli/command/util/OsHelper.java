@@ -7,7 +7,8 @@ import java.io.UnsupportedEncodingException;
  * Created by suk on 2019/6/3.
  */
 public class OsHelper {
-    public static String getMyDIR(){//获取当前类文件的绝对路径
+    public static String getMyDIR(){
+        //获取当前类文件的绝对路径
         String path = OsHelper.class.getProtectionDomain().getCodeSource().getLocation().getFile();
         if (path.endsWith(".jar")) {
             try {

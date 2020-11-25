@@ -27,26 +27,28 @@ import java.util.stream.Stream;
 import lombok.Data;
 import me.asu.cli.command.util.ResourcesFiles;
 import me.asu.tui.framework.api.*;
+import me.asu.tui.framework.util.CliArguments;
+import me.asu.tui.framework.util.CliCmdLineOption;
+import me.asu.tui.framework.util.CliCmdLineParser;
 import me.asu.util.Strings;
 
 /**
  * 对词汇进行编码
  */
-public class CodeCmd implements Command {
+public class CodeCmd implements CliCommand {
 
     private static final String NAMESPACE = "asu";
-    private static final String CMD_NAME = "code";
-    private Descriptor descriptor;
+    private static final String     CMD_NAME   = "code";
+    private static final Descriptor DESCRIPTOR = new InnerDescriptor();
 
     @Override
     public Descriptor getDescriptor() {
-        return (descriptor != null) ? descriptor : (descriptor = new DescriptorImpl());
+        return DESCRIPTOR;
     }
 
     @Override
-    public Object execute(Context ctx) {
-        String[] args = (String[]) ctx.getValue(Context.KEY_COMMAND_LINE_ARGS);
-        IoConsole c = ctx.getConsole();
+    public Object execute(CliContext ctx, String[] args) {
+        CliConsole c = ctx.getCliConsole();
 
         CodeContext codeCtx = new CodeContext();
         ArgumentsParser argumentsParser = new ArgumentsParser(args, c, codeCtx).invoke();
@@ -130,68 +132,16 @@ public class CodeCmd implements Command {
         }
         return b.toString();
     }
-    private Arguments parseArguments(String[] args) {
-        Arguments arguments = new Arguments();
-        if (args == null || args.length == 0) {
-            return arguments;
-        }
 
-        for (int i = 0; i < args.length; i++) {
-            switch (args[i]) {
-                case "-e":
-                    if (i + 1 >= args.length) {
-                        throw new RuntimeException(args[i] + " 需要一个参数");
-                    }
-                    arguments.setParam(args[i], args[i + 1]);
-                    i++;
-                    break;
-                case "-b":
-                    if (i + 1 >= args.length) {
-                        throw new RuntimeException(args[i] + " 需要一个参数");
-                    }
-                    arguments.setParam(args[i], args[i + 1]);
-                    i++;
-                    break;
-                case "-be":
-                    if (i + 1 >= args.length) {
-                        throw new RuntimeException(args[i] + " 需要一个参数");
-                    }
-                    arguments.setParam(args[i], args[i + 1]);
-                    i++;
-                    break;
-                case "-h":
-                    arguments.setParam(args[i], "true");
-                    break;
-                case "-he":
-                    arguments.setParam(args[i], "true");
-                    break;
-                case "-py":
-                    arguments.setParam(args[i], "true");
-                    break;
-                case "-wb":
-                    arguments.setParam(args[i], "true");
-                    break;
-                case "-cj":
-                    arguments.setParam(args[i], "true");
-                    break;
-                case "-sc":
-                    arguments.setParam(args[i], "true");
-                    break;
-                default:
-                    arguments.addRemain(args[i]);
-            }
-        }
-        return arguments;
-    }
 
     @Override
-    public void plug(Context plug) {
+    public void plug(CliContext plug) {
         //descriptor = new DescriptorImpl();
 
     }
 
     @Override
-    public void unplug(Context plug) {
+    public void unplug(CliContext plug) {
         // nothing to do
     }
 
@@ -225,7 +175,31 @@ public class CodeCmd implements Command {
         }
     }
 
-    private class DescriptorImpl implements Descriptor {
+    static class InnerDescriptor implements Descriptor {
+        CliCmdLineParser parser = new CliCmdLineParser();
+
+        public InnerDescriptor()
+        {
+
+            CliCmdLineOption opt1 = CliCmdLineOption.builder().shortName("b").hasArg(true).description("单字编码文件，格式为：单字<TAB>编码。").build();
+            CliCmdLineOption opt2 = CliCmdLineOption.builder().shortName("be").hasArg(true).description("单字编码文件字符编码。").build();
+            CliCmdLineOption opt3 = CliCmdLineOption.builder().shortName("e").hasArg(true).description("文件字符编码，默认为 UTF-8。").build();
+            CliCmdLineOption opt4 = CliCmdLineOption.builder().shortName("h").longName("help").description("打印帮助信息。").build();
+            CliCmdLineOption opt5 = CliCmdLineOption.builder().shortName("he").description("使用内置的小鹤双拼编码文件").build();
+            CliCmdLineOption opt6 = CliCmdLineOption.builder().shortName("py").description("使用内置的汉语全拼编码文件").build();
+            CliCmdLineOption opt7 = CliCmdLineOption.builder().shortName("sc").description("使用速成编码文件").build();
+            CliCmdLineOption opt8 = CliCmdLineOption.builder().shortName("wb").description("使用五笔编码文件").build();
+            CliCmdLineOption opt9 = CliCmdLineOption.builder().shortName("cj").description("使用仓颉编码文件").build();
+
+            parser.addOption(opt1, opt2, opt3, opt4, opt5, opt6, opt7, opt8, opt9);
+
+        }
+
+        @Override
+        public CliCmdLineParser getCliCmdLineParser()
+        {
+            return parser;
+        }
 
         @Override
         public String getNamespace() {
@@ -241,41 +215,16 @@ public class CodeCmd implements Command {
         public String getDescription() {
             return "对词汇进行编码";
         }
-
-        @Override
-        public String getUsage() {
-            StringBuilder result = new StringBuilder();
-            result.append(Configurator.VALUE_LINE_SEP).append(getName())
-                  .append(" [options] <inputFile>").append(Configurator.VALUE_LINE_SEP);
-
-            return result.toString();
-        }
-
-        @Override
-        public Map<String, String> getArguments() {
-            Map<String, String> result = new TreeMap<>();
-            result.put("-b", "单字编码文件，格式为：单字<TAB>编码。");
-            result.put("-be", "单字编码文件字符编码。");
-            result.put("-e", "文件字符编码，默认为 UTF-8。");
-            result.put("-h", "打印帮助信息。");
-            result.put("-he", "使用内置的小鹤双拼编码文件");
-            result.put("-py", "使用内置的汉语全拼编码文件");
-            result.put("-sc", "使用速成编码文件");
-            result.put("-wb", "使用五笔编码文件");
-            result.put("-cj", "使用仓颉编码文件");
-            return result;
-        }
-
     }
 
     private class ArgumentsParser {
 
         private boolean error;
         private final String[] args;
-        private final IoConsole c;
+        private final CliConsole c;
         private final CodeContext  codeCtx;
 
-        public ArgumentsParser(String[] args, IoConsole c, CodeContext codeCtx) {
+        public ArgumentsParser(String[] args, CliConsole c, CodeContext codeCtx) {
             this.args = args;
             this.c = c;
             this.codeCtx =codeCtx;
@@ -293,31 +242,31 @@ public class CodeCmd implements Command {
 
 
         public ArgumentsParser invoke() {
-            Arguments arguments = null;
+            CliArguments arguments = null;
             try {
-                arguments = parseArguments(args);
+                arguments = DESCRIPTOR.parse(args);
             } catch (Exception e) {
-                descriptor.printUsage(c);
+                DESCRIPTOR.printUsage(c);
                 error = true;
                 return this;
             }
-            if (arguments.hasParam("-h")
+            if (arguments.hasParam("h")
                     || !hasMappingFile(arguments)
                     || !hasInputFile(arguments)) {
-                descriptor.printUsage(c);
+                DESCRIPTOR.printUsage(c);
                 error = true;
                 return this;
             }
 
-            String delimiter = arguments.getParam("-d");
+            String delimiter = arguments.getParam("d");
             codeCtx.setEncoding(getEncoding(arguments));
 
             codeCtx.setOutputPath(Paths.get("coded.txt"));
             Map<String, List<String>> mapping;
             int column = getColumn(arguments);
-            if (arguments.hasParam("-b")) {
-                String mappingFile = arguments.getParam("-b");
-                Charset baseFileEncoding = getMappFileEncoding(arguments, codeCtx.getEncoding());
+            if (arguments.hasParam("b")) {
+                String mappingFile = arguments.getParam("b");
+                Charset baseFileEncoding = getMapFileEncoding(arguments, codeCtx.getEncoding());
                 mapping = ResourcesFiles.loadAsMapList(mappingFile, baseFileEncoding.name());
                 c.printf("编码文件： %s%n", mappingFile);
                 c.printf("字符编码： %s%n", baseFileEncoding);
@@ -337,13 +286,13 @@ public class CodeCmd implements Command {
                 mapping = ResourcesFiles.loadAsMapList("sc.txt");
                 c.printf("编码文件： 使用内置速成%n");
             } else {
-                descriptor.printUsage(c);
+                DESCRIPTOR.printUsage(c);
                 error = true;
                 return this;
             }
 
             codeCtx.setWordMap(mapping);
-            codeCtx.setInputPath(getInputputPath(arguments));
+            codeCtx.setInputPath(getInputPath(arguments));
             c.printf("处理文件： %s%n", codeCtx.getInputPath());
             c.printf("字符编码： %s%n", codeCtx.getEncoding());
             c.printf("行分隔符： %s%n", delimiter);
@@ -357,29 +306,29 @@ public class CodeCmd implements Command {
 
 
 
-        private boolean hasMappingFile(Arguments arguments) {
-            return arguments.hasParam("-b") || arguments.hasParam("-he") || arguments
-                    .hasParam("-py") || arguments.hasParam("-wb") || arguments.hasParam("-cj")
-                    || arguments.hasParam("-sc");
+        private boolean hasMappingFile(CliArguments arguments) {
+            return arguments.hasParam("b") || arguments.hasParam("he") || arguments
+                    .hasParam("py") || arguments.hasParam("wb") || arguments.hasParam("cj")
+                    || arguments.hasParam("sc");
         }
 
-        private boolean hasInputFile(Arguments arguments) {
+        private boolean hasInputFile(CliArguments arguments) {
             return arguments.getRemain().size() > 0;
         }
 
-        private Charset getEncoding(Arguments arguments) {
+        private Charset getEncoding(CliArguments arguments) {
             Charset encoding = StandardCharsets.UTF_8;
-            if (arguments.hasParam("-e")) {
-                encoding = Charset.forName(arguments.getParam("-e"));
+            if (arguments.hasParam("e")) {
+                encoding = Charset.forName(arguments.getParam("e"));
             }
             return encoding;
         }
 
-        private int getColumn(Arguments arguments) {
+        private int getColumn(CliArguments arguments) {
             int column = 0;
-            if (arguments.hasParam("-c")) {
+            if (arguments.hasParam("c")) {
                 try {
-                    column = Integer.parseInt(arguments.getParam("-c"));
+                    column = Integer.parseInt(arguments.getParam("c"));
                 } catch (NumberFormatException e) {
                     column = 0;
                 }
@@ -387,15 +336,15 @@ public class CodeCmd implements Command {
             return column;
         }
 
-        private Charset getMappFileEncoding(final Arguments arguments, final Charset encoding) {
+        private Charset getMapFileEncoding(final CliArguments arguments, final Charset encoding) {
             Charset e = encoding;
-            if (arguments.hasParam("-be")) {
-                e = Charset.forName(arguments.getParam("-be"));
+            if (arguments.hasParam("be")) {
+                e = Charset.forName(arguments.getParam("be"));
             }
             return e;
         }
 
-        private Path getInputputPath(Arguments arguments) {
+        private Path getInputPath(CliArguments arguments) {
             return Paths.get(arguments.getRemain().get(0)).toAbsolutePath();
         }
     }

@@ -1,6 +1,0 @@
-me.asu.cli.command.cnsort.ChineseSortCmd
-me.asu.cli.command.line_filter.LineFilterCmd
-me.asu.cli.command.code.CodeCmd
-me.asu.cli.command.unique.LineUniqueCmd
-me.asu.cli.command.sp.FullPyToSpCmd
-me.asu.cli.command.syllables_to_four.SyllablesToFourCmd

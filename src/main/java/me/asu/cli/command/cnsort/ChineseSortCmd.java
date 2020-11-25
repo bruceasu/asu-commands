@@ -22,53 +22,64 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.Comparator;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import lombok.Data;
-import me.asu.tui.framework.api.*;
+import me.asu.tui.framework.api.CliCommand;
+import me.asu.tui.framework.api.CliConfigurator;
+import me.asu.tui.framework.api.CliConsole;
+import me.asu.tui.framework.api.CliContext;
+import me.asu.tui.framework.util.CliArguments;
+import me.asu.tui.framework.util.CliCmdLineOption;
+import me.asu.tui.framework.util.CliCmdLineParser;
 
 /**
  * 中文排序
  *
  * @author vvivien
  */
-public class ChineseSortCmd implements Command {
-    private static final String TYPE_PHRASE = "p";
-    private static final String TYPE_SIMPLIFIED = "s";
+public class ChineseSortCmd implements CliCommand
+{
+
+    private static final String TYPE_PHRASE      = "p";
+    private static final String TYPE_SIMPLIFIED  = "s";
     private static final String TYPE_TRADITIONAL = "t";
 
-    private static final String NAMESPACE = "asu";
-    private static final String CMD_NAME  = "cn-sort";
-    private Descriptor descriptor;
+    private static final String     NAMESPACE  = "asu";
+    private static final String     CMD_NAME   = "cn-sort";
+    private static final Descriptor DESCRIPTOR = new InnerDescriptor();
 
     @Override
-    public Descriptor getDescriptor() {
-        return (descriptor != null) ? descriptor : (descriptor = new DescriptorImpl());
+    public Descriptor getDescriptor()
+    {
+        return DESCRIPTOR;
     }
 
     @Override
-    public Object execute(Context ctx) {
-        String[] args = (String[]) ctx.getValue(Context.KEY_COMMAND_LINE_ARGS);
-        IoConsole c = ctx.getConsole();
+    public Object execute(CliContext ctx,  String[] args)
+    {
+        CliConsole c = ctx.getCliConsole();
 
-        Arguments arguments = null;
+        CliArguments arguments = null;
         try {
-            arguments = parseArguments(args);
+            arguments = DESCRIPTOR.parse(args);
         } catch (Exception e) {
-            descriptor.printUsage(c);
+            DESCRIPTOR.printUsage(c);
             return null;
         }
-        if (arguments.hasParam("-h") ||
-                !arguments.hasRemain()) {
-            descriptor.printUsage(c);
+        if (arguments.hasParam("h") || !arguments.hasRemain()) {
+            DESCRIPTOR.printUsage(c);
             return null;
         }
 
         ChineseSearcher chineseSearcher = getChineseSearcher(arguments);
         Path outputPath = getOutputPath(arguments);
         Path inputPath = Paths.get(arguments.getRemain().get(0));
-        String delimiter = arguments.getParam("-d");
+        String delimiter = arguments.getParam("d");
         Charset encoding = getEncoding(arguments);
         int column = getColumn(arguments);
 
@@ -83,15 +94,15 @@ public class ChineseSortCmd implements Command {
         PriorityQueue<Word> words = new PriorityQueue<Word>(
                 Comparator.comparingInt(Word::getScore));
         AtomicInteger count = new AtomicInteger();
-        try(Stream<String> lines = Files.lines(inputPath, encoding);) {
+        try (Stream<String> lines = Files.lines(inputPath, encoding);) {
             lines.forEach(line -> {
                 Word w = new Word();
                 w.setLine(line);
                 int order = chineseSearcher.searchOrderByColumn(line, column, delimiter);
                 w.setScore(order);
                 words.add(w);
-                int i =                 count.incrementAndGet();
-                if (i%10000 == 0) {
+                int i = count.incrementAndGet();
+                if (i % 10000 == 0) {
                     c.printf("processing %d lines.%n", i);
                 }
             });
@@ -101,7 +112,7 @@ public class ChineseSortCmd implements Command {
         c.printf("处理了%d个字词。%n", words.size());
         c.printf("保存文件到：%s%n", outputPath);
         c.flush();
-        try(BufferedWriter bufferedWriter = Files.newBufferedWriter(outputPath)) {
+        try (BufferedWriter bufferedWriter = Files.newBufferedWriter(outputPath)) {
             words.forEach(w -> write(bufferedWriter, w));
             bufferedWriter.flush();
         } catch (IOException e) {
@@ -111,7 +122,8 @@ public class ChineseSortCmd implements Command {
         return null;
     }
 
-    private void write(BufferedWriter bufferedWriter, Word w) {
+    private void write(BufferedWriter bufferedWriter, Word w)
+    {
         try {
             bufferedWriter.write(w.getLine());
             bufferedWriter.write(System.getProperty("line.separator"));
@@ -120,30 +132,33 @@ public class ChineseSortCmd implements Command {
         }
     }
 
-    private int getColumn(Arguments arguments) {
+    private int getColumn(CliArguments arguments)
+    {
         int column = 0;
         if (arguments.hasParam("-c")) {
             try {
                 column = Integer.parseInt(arguments.getParam("-c"));
             } catch (NumberFormatException e) {
-               column  = 0;
+                column = 0;
             }
         }
         return column;
     }
 
-    private Charset getEncoding(Arguments arguments) {
+    private Charset getEncoding(CliArguments arguments)
+    {
         Charset encoding = StandardCharsets.UTF_8;
-        if (arguments.hasParam("-e")) {
-           encoding = Charset.forName(arguments.getParam("-e"));
+        if (arguments.hasParam("e")) {
+            encoding = Charset.forName(arguments.getParam("e"));
         }
         return encoding;
     }
 
-    private Path getOutputPath(Arguments arguments) {
+    private Path getOutputPath(CliArguments arguments)
+    {
         String output;
-        if (arguments.hasParam("-o")) {
-            output = arguments.getParam("-o");
+        if (arguments.hasParam("o")) {
+            output = arguments.getParam("o");
         } else {
             output = arguments.getRemain().get(0) + ".out";
         }
@@ -158,159 +173,105 @@ public class ChineseSortCmd implements Command {
         return outPath;
     }
 
-    private ChineseSearcher getChineseSearcher(Arguments arguments) {
+    private ChineseSearcher getChineseSearcher(CliArguments arguments)
+    {
         ChineseSearcher chineseSearcher;
         String type = null;
-        if (arguments.hasParam("-p")) {
+        if (arguments.hasParam("p")) {
             type = TYPE_PHRASE;
-        } else if (arguments.hasParam("-s")) {
+        } else if (arguments.hasParam("s")) {
             type = TYPE_SIMPLIFIED;
-        } else if (arguments.hasParam("-t")) {
+        } else if (arguments.hasParam("t")) {
             type = TYPE_TRADITIONAL;
         }
-        if (arguments.hasParam("-type")) {
+        if (arguments.hasParam("type")) {
             type = arguments.getParam("type");
         }
 
         switch (type) {
-            case TYPE_PHRASE:
-                chineseSearcher = Orders.getPhrasesSearcher();
-                break;
-            case TYPE_TRADITIONAL:
-                chineseSearcher = Orders.getTraditionChineseSearcher();
-                break;
-            case TYPE_SIMPLIFIED:
-            default:
-                chineseSearcher = Orders.getSimplifiedChineseSearcher();
-                break;
+        case TYPE_PHRASE:
+            chineseSearcher = Orders.getPhrasesSearcher();
+            break;
+        case TYPE_TRADITIONAL:
+            chineseSearcher = Orders.getTraditionChineseSearcher();
+            break;
+        case TYPE_SIMPLIFIED:
+        default:
+            chineseSearcher = Orders.getSimplifiedChineseSearcher();
+            break;
         }
         return chineseSearcher;
     }
 
 
-    public Arguments parseArguments(String[] args) {
-        Arguments arguments = new Arguments();
-        if (args == null || args.length == 0) {
-            return arguments;
-        }
 
-        for (int i = 0; i < args.length; i++) {
-            switch(args[i]) {
-                case "-c":
-                    if (i+1 >= args.length) {
-                        throw new RuntimeException(args[i] + " 需要一个参数");
-                    }
-                    arguments.setParam(args[i], args[i+1]);
-                    i++;
-                    break;
-                case "-d":
-                    if (i+1 >= args.length) {
-                        throw new RuntimeException(args[i] + " 需要一个参数");
-                    }
-                    arguments.setParam(args[i], args[i+1]);
-                    i++;
-                    break;
-                case "-e":
-                    if (i+1 >= args.length) {
-                        throw new RuntimeException(args[i] + " 需要一个参数");
-                    }
-                    arguments.setParam(args[i], args[i+1]);
-                    i++;
-                    break;
-                case "-o":
-                    if (i+1 >= args.length) {
-                        throw new RuntimeException(args[i] + " 需要一个参数");
-                    }
-                    arguments.setParam(args[i], args[i+1]);
-                    i++;
-                    break;
-                case "-type":
-                    if (i+1 >= args.length) {
-                        throw new RuntimeException(args[i] + " 需要一个参数");
-                    }
-                    arguments.setParam(args[i], args[i+1]);
-                    i++;
-                    break;
-                case "-h":
-                    arguments.setParam(args[i], "true");
-                    break;
-                case "-p":
-                    arguments.setParam(args[i], "true");
-                    break;
-                case "-s":
-                    arguments.setParam(args[i], "true");
-                    break;
-                case "-t":
-                    arguments.setParam(args[i], "true");
-                    break;
-                default:
-                    arguments.addRemain(args[i]);
-            }
-        }
-        return arguments;
-    }
 
 
     @Override
-    public void plug(Context plug) {
+    public void plug(CliContext plug)
+    {
         //descriptor = new DescriptorImpl();
 
     }
 
     @Override
-    public void unplug(Context plug) {
+    public void unplug(CliContext plug)
+    {
         // nothing to do
     }
 
     @Data
-    private class Word {
+    private class Word
+    {
+
         String line;
-        int score;
+        int    score;
     }
 
-    private class DescriptorImpl implements Command.Descriptor {
+    static class InnerDescriptor implements CliCommand.Descriptor
+    {
+        CliCmdLineParser parser = new CliCmdLineParser();
+
+        InnerDescriptor()
+        {
+
+            CliCmdLineOption opt1 = CliCmdLineOption.builder().shortName("c").hasArg(true).description("按照 n 行匹配，默认值是 0。").build();
+            CliCmdLineOption opt2 = CliCmdLineOption.builder().shortName("d").hasArg(true).description("行分隔符号。").build();
+            CliCmdLineOption opt3 = CliCmdLineOption.builder().shortName("e").hasArg(true).description("文件字符编码，默认为 UTF-8。").build();
+            CliCmdLineOption opt4 = CliCmdLineOption.builder().shortName("h").longName("help").description("打印帮助信息。").build();
+            CliCmdLineOption opt5 = CliCmdLineOption.builder().shortName("o").longName("output").hasArg(true).description("比对结果输出文件。").build();
+            CliCmdLineOption opt6 = CliCmdLineOption.builder().shortName("type").hasArg(true).description("排序类型, 默认是简体字字频。\n" + "\tp: 简体词组词频\n" + "\ts: 简体字字频\n" + "\tt: 繁体字字频").build();
+            CliCmdLineOption opt7 = CliCmdLineOption.builder().shortName("p").description("等同 -type p。").build();
+            CliCmdLineOption opt8 = CliCmdLineOption.builder().shortName("s").description("等同 -type s。").build();
+            CliCmdLineOption opt9 = CliCmdLineOption.builder().shortName("t").description("等同 -type t。").build();
+
+            parser.addOption(opt1, opt2, opt3, opt4, opt5, opt6, opt7, opt8, opt9);
+        }
+        @Override
+        public CliCmdLineParser getCliCmdLineParser()
+        {
+            return parser;
+        }
 
         @Override
-        public String getNamespace() {
+        public String getNamespace()
+        {
             return NAMESPACE;
         }
 
         @Override
-        public String getName() {
+        public String getName()
+        {
             return CMD_NAME;
         }
 
         @Override
-        public String getDescription() {
+        public String getDescription()
+        {
             return "中文字频排序";
         }
 
-        @Override
-        public String getUsage() {
-            StringBuilder result = new StringBuilder();
-            result.append(Configurator.VALUE_LINE_SEP).append(getName()).append(" [选项] <输入文件>")
-                  .append(Configurator.VALUE_LINE_SEP);
 
-            return result.toString();
-        }
-
-        @Override
-        public Map<String, String> getArguments() {
-            Map<String, String> result = new TreeMap<>();
-            result.put("-c", "按照 n 行排序，默认值是 0。");
-            result.put("-d", "行分隔符号。");
-            result.put("-e", "文件字符编码，默认为 UTF-8。");
-            result.put("-h", "打印帮助信息。");
-            result.put("-o", "结果输出文件。");
-            result.put("-type", "排序类型, 默认是简体字字频。\n"
-                    + "\tp: 简体词组词频\n"
-                    + "\ts: 简体字字频\n"
-                    + "\tt: 繁体字字频");
-            result.put("-p", "等同 -type p.");
-            result.put("-s", "等同 -type s.");
-            result.put("-t", "等同 -type t.");
-            return result;
-        }
 
     }
 

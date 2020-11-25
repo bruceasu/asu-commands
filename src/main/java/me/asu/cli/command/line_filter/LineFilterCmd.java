@@ -22,48 +22,56 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 import lombok.Data;
 import me.asu.cli.command.util.ResourcesFiles;
-import me.asu.tui.framework.api.*;
+import me.asu.tui.framework.api.CliCommand;
+import me.asu.tui.framework.api.CliConsole;
+import me.asu.tui.framework.api.CliContext;
+import me.asu.tui.framework.util.CliArguments;
+import me.asu.tui.framework.util.CliCmdLineOption;
+import me.asu.tui.framework.util.CliCmdLineParser;
 import me.asu.util.Strings;
 
 /**
  * 按行过滤文本
  */
-public class LineFilterCmd implements Command {
-    private static final String NAMESPACE = "asu";
-    private static final String CMD_NAME  = "line-filter";
-    private Descriptor descriptor;
+public class LineFilterCmd implements CliCommand
+{
+
+    private static final String     NAMESPACE  = "asu";
+    private static final String     CMD_NAME   = "line-filter";
+    private static final Descriptor DESCRIPTOR = new InnerDescriptor();
 
     @Override
-    public Descriptor getDescriptor() {
-        return (descriptor != null) ? descriptor : (descriptor = new DescriptorImpl());
+    public Descriptor getDescriptor()
+    {
+        return DESCRIPTOR;
     }
 
     @Override
-    public Object execute(Context ctx) {
-        String[] args = (String[]) ctx.getValue(Context.KEY_COMMAND_LINE_ARGS);
-        IoConsole c = ctx.getConsole();
+    public Object execute(CliContext ctx, String[] args)
+    {
+        CliConsole c = ctx.getCliConsole();
 
-        Arguments arguments = null;
+        CliArguments arguments = null;
         try {
-            arguments = parseArguments(args);
+            arguments = DESCRIPTOR.parse(args);
         } catch (Exception e) {
-            descriptor.printUsage(c);
+            DESCRIPTOR.printUsage(c);
             return null;
         }
-        if (arguments.hasParam("-h") ||
-                !arguments.hasRemain() ||
-                !arguments.hasParam("-b")) {
-            descriptor.printUsage(c);
+        if (arguments.hasParam("h") || !arguments.hasRemain() || !arguments.hasParam("b")) {
+            DESCRIPTOR.printUsage(c);
             return null;
         }
 
-        String delimiter = arguments.getParam("-d");
+        String delimiter = arguments.getParam("d");
         Charset encoding = getEncoding(arguments);
-
 
         Path inputPath = getInputputPath(arguments);
         Path outputPathIn = Paths.get(inputPath.toString() + ".in");
@@ -83,8 +91,7 @@ public class LineFilterCmd implements Command {
         List<String> in = new LinkedList<String>();
         List<String> notIn = new LinkedList<String>();
 
-
-        try(Stream<String> lines = Files.lines(inputPath, encoding);) {
+        try (Stream<String> lines = Files.lines(inputPath, encoding);) {
             lines.forEach(line -> {
                 String s = pickUpWord(line, column, delimiter);
                 if (baseSet.contains(s)) {
@@ -100,14 +107,14 @@ public class LineFilterCmd implements Command {
         c.printf("保存过滤出字词文件到：%s%n", outputPathIn);
         c.printf("保存清理字词文件到：%s%n", outputPathNotIn);
 
-        try(BufferedWriter bufferedWriter = Files.newBufferedWriter(outputPathIn)) {
+        try (BufferedWriter bufferedWriter = Files.newBufferedWriter(outputPathIn)) {
             in.forEach(w -> write(bufferedWriter, w));
             bufferedWriter.flush();
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        try(BufferedWriter bufferedWriter = Files.newBufferedWriter(outputPathNotIn)) {
+        try (BufferedWriter bufferedWriter = Files.newBufferedWriter(outputPathNotIn)) {
             notIn.forEach(w -> write(bufferedWriter, w));
             bufferedWriter.flush();
         } catch (IOException e) {
@@ -116,7 +123,8 @@ public class LineFilterCmd implements Command {
         return 0;
     }
 
-    String pickUpWord(String w, int columnIndex, String splitter) {
+    String pickUpWord(String w, int columnIndex, String splitter)
+    {
         if (Strings.isBlank(w)) {
             return "";
         }
@@ -135,15 +143,18 @@ public class LineFilterCmd implements Command {
         return split[columnIndex];
     }
 
-    private Set<String> loadBaseSet(Arguments arguments) {
+    private Set<String> loadBaseSet(CliArguments arguments)
+    {
         Charset encoding = getEncoding(arguments);
         Charset baseFileEncoding = getBaseEncoding(arguments, encoding);
 
-        String baseFile = arguments.getParam("-b");
-        return new HashSet<>(ResourcesFiles.readLinesInResources(baseFile, baseFileEncoding.name()));
+        String baseFile = arguments.getParam("b");
+        return new HashSet<>(
+                ResourcesFiles.readLinesInResources(baseFile, baseFileEncoding.name()));
     }
 
-    private void write(BufferedWriter bufferedWriter, String w) {
+    private void write(BufferedWriter bufferedWriter, String w)
+    {
         try {
             bufferedWriter.write(w);
             bufferedWriter.write(System.getProperty("line.separator"));
@@ -152,148 +163,129 @@ public class LineFilterCmd implements Command {
         }
     }
 
-    private int getColumn(Arguments arguments) {
+    private int getColumn(CliArguments arguments)
+    {
         int column = 0;
-        if (arguments.hasParam("-c")) {
+        if (arguments.hasParam("c")) {
             try {
-                column = Integer.parseInt(arguments.getParam("-c"));
+                column = Integer.parseInt(arguments.getParam("c"));
             } catch (NumberFormatException e) {
-               column  = 0;
+                column = 0;
             }
         }
         return column;
     }
 
-    private Charset getEncoding(Arguments arguments) {
+    private Charset getEncoding(CliArguments arguments)
+    {
         Charset encoding = StandardCharsets.UTF_8;
-        if (arguments.hasParam("-e")) {
-           encoding = Charset.forName(arguments.getParam("-e"));
+        if (arguments.hasParam("e")) {
+            encoding = Charset.forName(arguments.getParam("e"));
         }
         return encoding;
     }
 
-    private Charset getBaseEncoding(final Arguments arguments, final Charset encoding) {
+    private Charset getBaseEncoding(final CliArguments arguments, final Charset encoding)
+    {
         Charset e = encoding;
-        if (arguments.hasParam("-be")) {
-            e = Charset.forName(arguments.getParam("-be"));
+        if (arguments.hasParam("be")) {
+            e = Charset.forName(arguments.getParam("be"));
         }
         return e;
     }
-    private Path getInputputPath(Arguments arguments) {
+
+    private Path getInputputPath(CliArguments arguments)
+    {
         return Paths.get(arguments.getRemain().get(0)).toAbsolutePath();
     }
 
 
-
-    public Arguments parseArguments(String[] args) {
-        Arguments arguments = new Arguments();
-        if (args == null || args.length == 0) {
-            return arguments;
-        }
-
-        for (int i = 0; i < args.length; i++) {
-            switch(args[i]) {
-                case "-c":
-                    if (i+1 >= args.length) {
-                        throw new RuntimeException(args[i] + " 需要一个参数");
-                    }
-                    arguments.setParam(args[i], args[i+1]);
-                    i++;
-                    break;
-                case "-d":
-                    if (i+1 >= args.length) {
-                        throw new RuntimeException(args[i] + " 需要一个参数");
-                    }
-                    arguments.setParam(args[i], args[i+1]);
-                    i++;
-                    break;
-                case "-e":
-                    if (i+1 >= args.length) {
-                        throw new RuntimeException(args[i] + " 需要一个参数");
-                    }
-                    arguments.setParam(args[i], args[i+1]);
-                    i++;
-                    break;
-                case "-b":
-                    if (i+1 >= args.length) {
-                        throw new RuntimeException(args[i] + " 需要一个参数");
-                    }
-                    arguments.setParam(args[i], args[i+1]);
-                    i++;
-                    break;
-                case "-be":
-                    if (i+1 >= args.length) {
-                        throw new RuntimeException(args[i] + " 需要一个参数");
-                    }
-                    arguments.setParam(args[i], args[i+1]);
-                    i++;
-                    break;
-                case "-h":
-                    arguments.setParam(args[i], "true");
-                    break;
-
-                default:
-                    arguments.addRemain(args[i]);
-            }
-        }
-        return arguments;
-    }
-
-
     @Override
-    public void plug(Context plug) {
+    public void plug(CliContext plug)
+    {
         //descriptor = new DescriptorImpl();
 
     }
 
     @Override
-    public void unplug(Context plug) {
+    public void unplug(CliContext plug)
+    {
         // nothing to do
     }
 
     @Data
-    private class Word {
+    private class Word
+    {
+
         String line;
-        int score;
+        int    score;
     }
 
-    private class DescriptorImpl implements Descriptor {
+    static class InnerDescriptor implements Descriptor
+    {
+
+        CliCmdLineParser parser = new CliCmdLineParser();
+
+        InnerDescriptor()
+        {
+            CliCmdLineOption opt1 = CliCmdLineOption.builder()
+                                                    .shortName("c")
+                                                    .hasArg(true)
+                                                    .description("按照 n 行匹配，默认值是 0。")
+                                                    .build();
+            CliCmdLineOption opt2 = CliCmdLineOption.builder()
+                                                    .shortName("d")
+                                                    .hasArg(true)
+                                                    .description("行分隔符号。")
+                                                    .build();
+            CliCmdLineOption opt3 = CliCmdLineOption.builder()
+                                                    .shortName("e")
+                                                    .hasArg(true)
+                                                    .description("文件字符编码，默认为 UTF-8。")
+                                                    .build();
+            CliCmdLineOption opt4 = CliCmdLineOption.builder()
+                                                    .shortName("h")
+                                                    .longName("help")
+                                                    .description("打印帮助信息。")
+                                                    .build();
+            CliCmdLineOption opt5 = CliCmdLineOption.builder()
+                                                    .shortName("b")
+                                                    .hasArg(true)
+                                                    .description("比对文件。")
+                                                    .build();
+            CliCmdLineOption opt6 = CliCmdLineOption.builder()
+                                                    .shortName("be")
+                                                    .hasArg(true)
+                                                    .description("比对文件字符编码。")
+                                                    .build();
+
+            parser.addOption(opt1, opt2, opt3, opt4, opt5, opt6);
+        }
 
         @Override
-        public String getNamespace() {
+        public CliCmdLineParser getCliCmdLineParser()
+        {
+            return parser;
+        }
+
+        @Override
+        public String getNamespace()
+        {
             return NAMESPACE;
         }
 
         @Override
-        public String getName() {
+        public String getName()
+        {
             return CMD_NAME;
         }
 
         @Override
-        public String getDescription() {
+        public String getDescription()
+        {
             return "按行过滤文本。";
         }
 
-        @Override
-        public String getUsage() {
-            StringBuilder result = new StringBuilder();
-            result.append(Configurator.VALUE_LINE_SEP).append(getName()).append(" [options] <inputFile>")
-                  .append(Configurator.VALUE_LINE_SEP);
-
-            return result.toString();
-        }
-
-        @Override
-        public Map<String, String> getArguments() {
-            Map<String, String> result = new TreeMap<>();
-            result.put("-c", "按照 n 行匹配，默认值是 0。");
-            result.put("-d", "行分隔符号。");
-            result.put("-e", "文件字符编码，默认为 UTF-8。");
-            result.put("-h", "打印帮助信息。");
-            result.put("-b", "比对文件。");
-            result.put("-be", "比对文件字符编码。");
-            return result;
-        }
 
     }
 

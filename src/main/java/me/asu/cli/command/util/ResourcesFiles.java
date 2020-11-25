@@ -5,8 +5,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.util.*;
-import me.asu.util.io.Files;
-import me.asu.util.io.Streams;
+import me.asu.util.Files;
+import me.asu.util.Streams;
 
 /**
  * Created by suk on 2019/6/2.
